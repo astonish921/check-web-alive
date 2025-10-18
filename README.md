@@ -1,108 +1,142 @@
 # 网站存活监控（Windows/Linux）
 
-监控 `https://www.axured.cn` 是否可访问。每分钟检查一次；当返回 4xx/5xx 或请求异常时，发送邮件告警（主题：`axure网站挂了`）。支持开机自启动（Windows 计划任务 / Linux systemd 服务）。
+监控指定网站是否可访问。每分钟检查一次；当返回 4xx/5xx 或请求异常时，发送邮件告警。支持开机自启动（Windows 计划任务 / Linux systemd 服务）。
 
-## 安装
+## 安装python及依赖
 
 ### Windows
+如果是使用pyinstaller已经打包成exe,可以不安装python和依赖。如果不是，要安装如下：
 
-1. 安装 Python 3.9+（并勾选 Add to PATH）
-2. 安装依赖：
+1. 安装 Python 3.6.8+（并勾选 Add to PATH）
+2. 安装依赖，如果是python 脚本的方式，一定是要先执行这个，否则python-dotenv没安装导致配置文件读取异常：
    ```bash
    pip install -r requirements.txt
    ```
-3. 生成可执行文件：
+
+3.如果要生成可执行文件，这样处理，要提前安装好pyinstaller （使用pip install pyinstaller）：
    ```bash
    pyinstaller --onefile check-web-alive.py
    ```
 ### Linux
 
-1. 安装 Python 3.9+ 和 pip
+1. 安装 Python 3.6.8+ 和 pip
 2. 安装依赖：
+   一定是要先执行这个，否则python-dotenv没安装导致配置文件读取异常
    ```bash
    pip install -r requirements.txt
    ```
-3. （可选）生成可执行文件：
-   ```bash
-   pyinstaller --onefile check-web-alive.py
-   ```
+
 
 ## 配置
 
-程序支持从 `.env` 或系统环境变量读取配置。默认目标地址为 `https://www.axured.cn`，检查间隔 60 秒。
+程序支持从 `.env` 或系统环境变量读取配置。需要配置目标网站URL、检查间隔、邮件服务器等信息。
 
-在项目根目录创建 `.env`（与 `app` 同级）：
+在项目根目录创建 `.env` 配置文件：
 ```ini
-TARGET_URL=https://www.axured.cn
+# 目标网站配置
+TARGET_URL=https://example.com
 CHECK_INTERVAL_SECONDS=60
 REQUEST_TIMEOUT_SECONDS=10
 
-MAIL_TO=astonish921@126.com
-MAIL_FROM=your_from_address@example.com
+# 邮件通知配置
+MAIL_TO=admin@example.com
+MAIL_FROM=noreply@example.com
 
-SMTP_HOST=smtp.126.com
+# SMTP服务器配置
+SMTP_HOST=smtp.example.com
 SMTP_PORT=465
-SMTP_USERNAME=your_account@126.com
-SMTP_PASSWORD=your_smtp_auth_code
+SMTP_USERNAME=your_email@example.com
+SMTP_PASSWORD=your_smtp_password
 SMTP_USE_TLS=true
+
+# 日志配置
+LOG_RETENTION_DAYS=30
 ```
 
-> 注：126/QQ 邮箱需开启 SMTP 并使用授权码作为密码。
+> 注：请根据您的邮件服务商要求配置SMTP参数。部分邮箱需要开启SMTP并使用授权码作为密码。
 
 也可直接设置环境变量（示例）：
 ```powershell
-$env:TARGET_URL="https://www.axured.cn"
-$env:MAIL_TO="astonish921@126.com"
-$env:SMTP_HOST="smtp.126.com"
+$env:TARGET_URL="https://example.com"
+$env:MAIL_TO="admin@example.com"
+$env:SMTP_HOST="smtp.example.com"
 $env:SMTP_PORT="465"
-$env:SMTP_USERNAME="your_account@126.com"
-$env:SMTP_PASSWORD="your_smtp_auth_code"
+$env:SMTP_USERNAME="your_email@example.com"
+$env:SMTP_PASSWORD="your_smtp_password"
 $env:SMTP_USE_TLS="true"
+```
+
+## 开发时测试
+```powershell
+python check-web-alive.py
 ```
 
 ## 本地运行
 
 ### Windows
-
+要求将python程序生成的exe文件，如果检测到在dist文件夹没有exe文件，执行命令时会报错提醒。
 ```powershell
-pwsh -File .\scripts\run.ps1
+pwsh -File .\scripts\windows\run.ps1
 ```
 
 ### Linux
 
 ```bash
-./scripts/run-linux.sh
+./scripts/linux/run-linux.sh
 ```
 
 日志输出到 `logs/check-web-alive-YYYY-MM-DD.log`。
 
+
+如果提示找不到文件，检查此sh文件的权限。
+1. 首先，使用 ls -l 命令检查文件的权限：ls -l ./scripts/run-linux.sh
+这将显示文件的详细信息，包括权限。例如：
+```
+-rw-r--r-- 1 root root 1234 Oct 17 10:00 ./scripts/run-linux.sh
+```
+在这个例子中，文件的权限是 -rw-r--r--，表示所有者（root）有读写权限，组和其他用户只有读权限，没有执行权限。
+
+2. 添加执行权限
+如果文件没有执行权限，你可以使用 chmod 命令添加执行权限。运行以下命令：
+```
+chmod +x ./scripts/run-linux.sh
+```
+这将为当前用户添加执行权限。再次检查文件权限：
+```
+ls -l ./scripts/run-linux.sh
+```
+你应该会看到类似以下的输出：
+```
+-rwxr-xr-x 1 root root 1234 Oct 17 10:00 ./scripts/run-linux.sh
+```
+现在，文件已经具有执行权限。
+
 ## 开机自启动
 
 ### Windows（计划任务）
-
+要求将python程序生成的exe文件，如果检测到在dist文件夹没有exe文件，执行命令时会报错提醒。
 1. 允许脚本执行（一次性）：
    ```powershell
    Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
    ```
-2. 注册计划任务（当前用户权限运行）：
+2. 注册开机立即执行的计划任务（当前用户权限运行），执行后也会马上执行程序，不要等下次开机：
    ```powershell
-   pwsh -File .\scripts\register_task.ps1 -TaskName "CheckWebAlive"
+   pwsh -File .\scripts\windows\register_task.ps1 -TaskName "CheckWebAlive"
    ```
-3. 或以 SYSTEM 身份运行（无需登录也会运行）：
+3. 推荐：注册开机立即执行的计划任务，以 SYSTEM 身份运行（无需登录也会运行），需要使用管理员身份运行powershell,再来执行如下的命令。执行后也会马上执行程序，不要等下次开机。
    ```powershell
-   pwsh -File .\scripts\register_task.ps1 -TaskName "CheckWebAlive" -RunAsSystem
+   pwsh -File .\scripts\windows\register_task.ps1 -TaskName "CheckWebAlive" -RunAsSystem
    ```
 
 ### Linux（systemd 服务）
 
 1. 安装服务（需要 root 权限）：
+   如果提示找不到文件，检查此sh文件的权限。
    ```bash
-   sudo ./scripts/install-linux.sh
+   sudo ./scripts/linux/install-linux.sh
    ```
    
-   安装脚本会自动检测：
-   - 如果存在 `dist/check-web-alive` 可执行文件，使用可执行文件模式
-   - 否则使用 Python 脚本模式（需要系统安装 Python 3.9+ 和依赖包）
+   安装脚本使用 Python 脚本模式（需要系统安装 Python 3.6.8+ 和依赖包）
 
 2. 服务管理命令：
    ```bash
@@ -123,25 +157,29 @@ pwsh -File .\scripts\run.ps1
    ```
 
 3. 卸载服务：
+  如果提示找不到文件，检查此sh文件的权限。
    ```bash
-   sudo ./scripts/uninstall-linux.sh
+   sudo ./scripts/linux/uninstall-linux.sh
    ```
 
 ## 目录结构
 ```
 check-web-alive.py
-dist/
-    check-web-alive.exe   # windows可执行文件，pyinstaller --onefile check-web-alive.py生成。这样拷贝到其他服务上就不需要安装python相关的内容了
 scripts/
-  run.ps1                    # Windows 运行脚本
-  register_task.ps1          # Windows 计划任务注册
-  run-linux.sh              # Linux 运行脚本
-  install-linux.sh          # Linux 安装脚本
-  uninstall-linux.sh        # Linux 卸载脚本
-  check-web-alive.service   # Linux systemd 服务文件
+  linux/                    # Linux 相关脚本
+    run-linux.sh              # Linux 运行脚本
+    install-linux.sh          # Linux 安装脚本
+    uninstall-linux.sh       # Linux 卸载脚本
+    common_tpl.service              # Linux systemd 服务文件 的模板文件，运行install-linux.sh时会生成一个正式的service文件
+  windows/                  # Windows 相关脚本
+    run.ps1                    # Windows 运行脚本
+    register_task.ps1          # Windows 计划任务注册    
+  README.md                 # 脚本使用说明
 logs/
   check-web-alive-YYYY-MM-DD.log (按天分割的日志文件)
+rundata/
   state.json (状态记录文件)
+  check-web-alive.lock (单实例锁文件，运行时创建)
 .env (配置文件)
 ```
 
@@ -167,7 +205,46 @@ logs/
 
 ## 说明
 - 仅在状态从"正常"变为"异常"时发送一封告警，避免重复刷屏。
-- 邮件主题固定为：`axure网站挂了`；正文包含状态码/异常与时间。
+- 邮件主题和内容可根据需要自定义。
 - 如需更改目标站点或收件人，修改 `.env` 或环境变量即可。
 - 程序启动时会自动清理过期日志文件，无需手动维护。
 - 支持 Windows 和 Linux 双平台，开机自启动，单实例保护。
+
+## 通用基础模块
+
+本项目包含一个通用的基础模块 `src/base.py`，提供以下通用能力：
+
+- **单例执行能力**：防止程序重复运行
+- **日志登记能力**：按天分割日志，自动清理过期日志
+- **配置加载能力**：支持 .env 文件和环境变量
+- **邮件发送能力**：支持 SMTP 邮件发送
+
+其他项目可以直接使用这些通用能力，无需重复开发。
+
+### 使用示例
+
+```python
+from src.base import BaseApp
+
+# 创建应用实例
+app = BaseApp("my-app")
+
+# 获取单例锁
+if not app.acquire_single_instance_lock():
+    print("程序已在运行")
+    exit(1)
+
+try:
+    # 设置日志
+    logger = app.setup_logging()
+    
+    # 加载配置
+    config = app.load_config()
+    
+    # 发送邮件
+    app.send_mail(config, "主题", "内容")
+    
+finally:
+    # 释放锁
+    app.release_single_instance_lock()
+```

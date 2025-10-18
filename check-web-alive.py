@@ -3,7 +3,12 @@ import sys
 import time
 import json
 from pathlib import Path
-from typing import Optional, Tuple
+try:
+    from typing import Optional, Tuple
+except ImportError:
+    # Python 3.6 兼容性
+    Optional = None
+    Tuple = None
 
 import requests
 
@@ -15,7 +20,7 @@ from src.base import BaseApp
 
 ## ========begin 业务代码 =============
 
-def read_state(state_file: Path) -> Tuple[Optional[bool], Optional[int]]:
+def read_state(state_file):
 	"""读取上次状态（是否可达、时间戳）。"""
 	if not state_file.exists():
 		return None, None
@@ -26,13 +31,13 @@ def read_state(state_file: Path) -> Tuple[Optional[bool], Optional[int]]:
 		return None, None
 
 
-def write_state(state_file: Path, last_ok: bool) -> None:
+def write_state(state_file, last_ok):
 	"""写入状态到文件。"""
 	state = {"last_ok": last_ok, "last_change_ts": int(time.time())}
 	state_file.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def check_url(url: str, timeout_seconds: int) -> Tuple[bool, Optional[int], Optional[str]]:
+def check_url(url, timeout_seconds):
 	"""检查目标URL是否可达。
 
 	返回: (是否可达, HTTP状态码或None, 错误消息或None)
@@ -95,30 +100,34 @@ def main() -> None:
 				cfg["MAIL_FROM"] = cfg["SMTP_USERNAME"]
 				
 		except (FileNotFoundError, ValueError) as config_error:
-			logger.error(f"配置加载失败: {config_error}")
-			print(f"配置加载失败: {config_error}")
+			logger.error("配置加载失败: {}".format(config_error))
+			print("配置加载失败: {}".format(config_error))
 			sys.exit(1)
 		
 		## ========begin 业务代码 =============
+		# 创建 rundata 目录（如果不存在）
+		rundata_dir = app.root / "rundata"
+		rundata_dir.mkdir(exist_ok=True)
+		
 		# 读取上次状态
-		state_file = app.root / "state.json"
+		state_file = rundata_dir / "state.json"
 		last_ok, _ = read_state(state_file)
 
 		url = cfg["TARGET_URL"]
 		interval = cfg["CHECK_INTERVAL_SECONDS"]
 		request_timeout = cfg["REQUEST_TIMEOUT_SECONDS"]
 		
-		logger.info(f"监控启动: {url}，检查间隔: {interval}s，日志保留: {cfg['LOG_RETENTION_DAYS']}天")
-		logger.info(f"进程ID: {os.getpid()}")
+		logger.info("监控启动: {}，检查间隔: {}s，日志保留: {}天".format(url, interval, cfg['LOG_RETENTION_DAYS']))
+		logger.info("进程ID: {}".format(os.getpid()))
 
 		while True:
 			ok, status_code, error_msg = check_url(url, request_timeout)
-			status_text = f"{status_code}" if status_code is not None else "EXCEPTION"
+			status_text = "{}".format(status_code) if status_code is not None else "EXCEPTION"
 			
 			# 记录检查结果到日志
-			logger.info(f"检查结果 - URL: {url}, 状态: {status_text}, 可达: {ok}")
+			logger.info("检查结果 - URL: {}, 状态: {}, 可达: {}".format(url, status_text, ok))
 			if error_msg:
-				logger.warning(f"请求异常: {error_msg}")
+				logger.warning("请求异常: {}".format(error_msg))
 
 			# 仅在状态由 OK -> NG 时发送一封报警，避免每分钟刷屏
 			if ok is False and (last_ok is True or last_ok is None):
@@ -127,21 +136,21 @@ def main() -> None:
 					# 邮件正文包含简单上下文
 					content = (
 						"axure网站挂了\n\n"
-						f"URL: {url}\n"
-						f"状态: {status_text}\n"
-						f"错误: {error_msg or ''}\n"
-						f"时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-					)
+						"URL: {}\n"
+						"状态: {}\n"
+						"错误: {}\n"
+						"时间: {}\n"
+					).format(url, status_text, error_msg or '', time.strftime('%Y-%m-%d %H:%M:%S'))
 					app.send_mail(cfg, subject, content)
 					logger.info("已发送告警邮件")
 				except Exception as mail_exc:
-					logger.error(f"发送邮件失败: {mail_exc}")
+					logger.error("发送邮件失败: {}".format(mail_exc))
 
 			# 记录最新状态
 			if last_ok is None or last_ok != ok:
 				write_state(state_file, ok)
 				last_ok = ok
-				logger.info(f"状态变更: {last_ok} -> {ok}")
+				logger.info("状态变更: {} -> {}".format(last_ok, ok))
 
 			time.sleep(interval)
 		## ========end 业务代码 =============
@@ -149,7 +158,7 @@ def main() -> None:
 	except KeyboardInterrupt:
 		logger.info("收到中断信号，正在退出...")
 	except Exception as e:
-		logger.error(f"程序异常: {e}")
+		logger.error("程序异常: {}".format(e))
 		raise
 	finally:
 		# 清理锁文件

@@ -1,6 +1,8 @@
+# 不同的程序可以修改 $TaskName = "CheckWebAlive" ，$AppName = "check-web-alive"。这个会影响到后台进行监控的程序名称。
 param(
     [string]$TaskName = "CheckWebAlive",
-    [string]$ProjectRoot = (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)),
+    [string]$ProjectRoot = (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path))),
+    [string]$AppName = "check-web-alive",
     [switch]$RunAsSystem
 )
 

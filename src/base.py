@@ -12,7 +12,14 @@ import logging
 from datetime import datetime, timedelta
 from email.message import EmailMessage
 from pathlib import Path
-from typing import Optional, Tuple, Dict, Any
+try:
+    from typing import Optional, Tuple, Dict, Any
+except ImportError:
+    # Python 3.6 兼容性
+    Optional = None
+    Tuple = None
+    Dict = None
+    Any = None
 
 # 平台相关导入
 if os.name == 'nt':
@@ -50,7 +57,13 @@ class BaseApp:
         if root_path is None:
             if getattr(sys, 'frozen', False):
                 # PyInstaller 打包后的情况
-                self.root = Path(sys.executable).parent
+                # exe 文件在 dist 目录下，但配置文件和日志文件应该在项目根目录
+                exe_path = Path(sys.executable).parent
+                # 如果 exe 在 dist 目录下，则项目根目录是 dist 的父目录
+                if exe_path.name == 'dist':
+                    self.root = exe_path.parent
+                else:
+                    self.root = exe_path
             else:
                 # 开发环境的情况
                 self.root = Path(__file__).resolve().parent.parent
@@ -66,7 +79,7 @@ class BaseApp:
         CreateMutexW.restype = wintypes.HANDLE
 
         # 创建全局命名互斥量，避免不同会话重复实例
-        mutex_name = f"Global\\{name}"
+        mutex_name = "Global\\{}".format(name)
         handle = CreateMutexW(None, False, mutex_name)
         if not handle:
             return False
@@ -75,17 +88,20 @@ class BaseApp:
         _WIN_MUTEX_HANDLE = handle
         return last_error != _WIN_ERROR_ALREADY_EXISTS
 
-    def acquire_single_instance_lock(self, lock_file: Optional[Path] = None) -> bool:
+    def acquire_single_instance_lock(self, lock_file=None):
         """尝试获取单实例锁。Windows用命名互斥量；Unix用fcntl文件锁。"""
         global _LOCK_HANDLE
         
         if lock_file is None:
-            lock_file = self.root / f"{self.app_name}.lock"
+            # 创建 rundata 目录（如果不存在）
+            rundata_dir = self.root / "rundata"
+            rundata_dir.mkdir(exist_ok=True)
+            lock_file = rundata_dir / "{}.lock".format(self.app_name)
             
         try:
             if os.name == 'nt':
                 # Windows: 使用命名互斥量
-                return self._acquire_windows_mutex(f'{self.app_name}-mutex')
+                return self._acquire_windows_mutex('{}-mutex'.format(self.app_name))
             else:
                 # Unix: 使用文件锁
                 lock_file.parent.mkdir(parents=True, exist_ok=True)
@@ -105,12 +121,15 @@ class BaseApp:
             _LOCK_HANDLE = None
             return False
 
-    def release_single_instance_lock(self, lock_file: Optional[Path] = None) -> None:
+    def release_single_instance_lock(self, lock_file=None):
         """释放单实例锁。"""
         global _LOCK_HANDLE, _WIN_MUTEX_HANDLE
         
         if lock_file is None:
-            lock_file = self.root / f"{self.app_name}.lock"
+            # 创建 rundata 目录（如果不存在）
+            rundata_dir = self.root / "rundata"
+            rundata_dir.mkdir(exist_ok=True)
+            lock_file = rundata_dir / "{}.lock".format(self.app_name)
             
         try:
             if os.name == 'nt':
@@ -130,8 +149,7 @@ class BaseApp:
         except Exception:
             pass
 
-    def load_config(self, config_file: Optional[Path] = None, required_keys: Optional[list] = None, 
-                   type_conversions: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    def load_config(self, config_file=None, required_keys=None, type_conversions=None):
         """加载配置，优先读取 .env 文件，其次读取系统环境变量。
         
         Args:
@@ -149,8 +167,8 @@ class BaseApp:
         
         # 检查配置文件是否存在
         if not config_file.exists():
-            error_msg = f"配置文件不存在: {config_file}"
-            print(f"错误: {error_msg}")
+            error_msg = "配置文件不存在: {}".format(config_file)
+            print("错误: {}".format(error_msg))
             raise FileNotFoundError(error_msg)
             
         # 加载 .env 文件
@@ -178,14 +196,14 @@ class BaseApp:
                             else:
                                 config[key] = env_value
                         except ValueError:
-                            missing_keys.append(f"{key}(无效的{target_type}值)")
+                            missing_keys.append("{}(无效的{}值)".format(key, target_type))
                     else:
                         config[key] = env_value
             
             # 如果有缺失的配置项，抛出异常
             if missing_keys:
-                error_msg = f"配置文件 {config_file} 中缺少必需的配置项: {', '.join(missing_keys)}"
-                print(f"错误: {error_msg}")
+                error_msg = "配置文件 {} 中缺少必需的配置项: {}".format(config_file, ', '.join(missing_keys))
+                print("错误: {}".format(error_msg))
                 raise ValueError(error_msg)
         else:
             # 如果没有指定必需配置项，则加载所有环境变量
@@ -195,7 +213,7 @@ class BaseApp:
                 
         return config
 
-    def setup_logging(self, log_dir: Optional[Path] = None, retention_days: int = 30) -> logging.Logger:
+    def setup_logging(self, log_dir=None, retention_days=30):
         """设置日志记录，按天分割日志文件，自动清理过期日志。"""
         if log_dir is None:
             log_dir = self.root / "logs"
@@ -208,7 +226,7 @@ class BaseApp:
         
         # 创建按天分割的日志文件名
         today = datetime.now().strftime("%Y-%m-%d")
-        log_file = log_dir / f"{self.app_name}-{today}.log"
+        log_file = log_dir / "{}-{}.log".format(self.app_name, today)
         
         # 配置日志格式
         logging.basicConfig(
@@ -221,10 +239,10 @@ class BaseApp:
         )
         
         logger = logging.getLogger(self.app_name)
-        logger.info(f"日志系统已启动，日志文件: {log_file}")
+        logger.info("日志系统已启动，日志文件: {}".format(log_file))
         return logger
 
-    def cleanup_old_logs(self, log_dir: Path, retention_days: int) -> None:
+    def cleanup_old_logs(self, log_dir, retention_days):
         """清理超过保留天数的日志文件。"""
         if not log_dir.exists():
             return
@@ -232,7 +250,7 @@ class BaseApp:
         cutoff_date = datetime.now() - timedelta(days=retention_days)
         deleted_count = 0
         
-        for log_file in log_dir.glob(f"{self.app_name}-*.log"):
+        for log_file in log_dir.glob("{}-*.log".format(self.app_name)):
             try:
                 # 从文件名提取日期
                 date_str = log_file.stem.split('-')[-1]  # 获取日期部分
@@ -246,9 +264,9 @@ class BaseApp:
                 continue
         
         if deleted_count > 0:
-            print(f"[日志清理] 已删除 {deleted_count} 个过期日志文件")
+            print("[日志清理] 已删除 {} 个过期日志文件".format(deleted_count))
 
-    def send_mail(self, config: Dict[str, Any], subject: str, content: str) -> None:
+    def send_mail(self, config, subject, content):
         """发送邮件通知。"""
         smtp_host = config["SMTP_HOST"]
         smtp_port = config["SMTP_PORT"]
@@ -284,37 +302,37 @@ class BaseApp:
 
 
 # 为了向后兼容，提供独立的函数接口
-def acquire_single_instance_lock(lock_file: Path, app_name: str = "check-web-alive") -> bool:
+def acquire_single_instance_lock(lock_file, app_name="check-web-alive"):
     """向后兼容的单例锁获取函数"""
     app = BaseApp(app_name)
     return app.acquire_single_instance_lock(lock_file)
 
 
-def release_single_instance_lock(lock_file: Path, app_name: str = "check-web-alive") -> None:
+def release_single_instance_lock(lock_file, app_name="check-web-alive"):
     """向后兼容的单例锁释放函数"""
     app = BaseApp(app_name)
     app.release_single_instance_lock(lock_file)
 
 
-def load_config() -> dict:
+def load_config():
     """向后兼容的配置加载函数"""
     app = BaseApp("check-web-alive")
     return app.load_config()
 
 
-def setup_logging(log_dir: Path, retention_days: int, app_name: str = "check-web-alive") -> logging.Logger:
+def setup_logging(log_dir, retention_days, app_name="check-web-alive"):
     """向后兼容的日志设置函数"""
     app = BaseApp(app_name)
     return app.setup_logging(log_dir, retention_days)
 
 
-def cleanup_old_logs(log_dir: Path, retention_days: int, app_name: str = "check-web-alive") -> None:
+def cleanup_old_logs(log_dir, retention_days, app_name="check-web-alive"):
     """向后兼容的日志清理函数"""
     app = BaseApp(app_name)
     app.cleanup_old_logs(log_dir, retention_days)
 
 
-def send_mail(cfg: dict, subject: str, content: str) -> None:
+def send_mail(cfg, subject, content):
     """向后兼容的邮件发送函数"""
     app = BaseApp("check-web-alive")
     app.send_mail(cfg, subject, content)

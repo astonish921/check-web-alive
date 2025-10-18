@@ -1,5 +1,6 @@
+## 注意此文件的文件名保持为common_tpl.service，不要调整成其他的。如果要调整修改install-linux.sh里引用部分
 [Unit]
-Description=Check Web Alive Monitor
+Description={{APP_DESCRIPTION}}
 After=network.target
 Wants=network.target
 
@@ -7,7 +8,7 @@ Wants=network.target
 Type=simple
 User=root
 Group=root
-ExecStart=/opt/check-web-alive/check-web-alive
+ExecStart={{APP_NAME}}
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -15,14 +16,14 @@ StandardError=journal
 Environment=PYTHONUNBUFFERED=1
 
 # 工作目录
-WorkingDirectory=/opt/check-web-alive
+WorkingDirectory={{INSTALL_DIR}}
 
 # 安全设置
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/check-web-alive
+ReadWritePaths={{INSTALL_DIR}}
 
 [Install]
 WantedBy=multi-user.target
