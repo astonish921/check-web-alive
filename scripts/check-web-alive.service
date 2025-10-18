@@ -1,0 +1,28 @@
+[Unit]
+Description=Check Web Alive Monitor
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/opt/check-web-alive/check-web-alive
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+# 工作目录
+WorkingDirectory=/opt/check-web-alive
+
+# 安全设置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/check-web-alive
+
+[Install]
+WantedBy=multi-user.target

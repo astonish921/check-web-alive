@@ -1,0 +1,4 @@
+dist/
+build/
+logs/
+check-web-alive.spec
