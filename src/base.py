@@ -272,7 +272,13 @@ class BaseApp:
         smtp_port = config["SMTP_PORT"]
         username = config["SMTP_USERNAME"]
         password = config["SMTP_PASSWORD"]
-        use_tls = config["SMTP_USE_TLS"]
+        # 兼容旧配置：如果未显式配置 SMTP_USE_TLS，则根据端口推断一个默认值
+        if "SMTP_USE_TLS" in config:
+            use_tls = config["SMTP_USE_TLS"]
+        else:
+            # 常见端口 465/587 默认使用 TLS，其它端口默认不启用
+            use_tls = smtp_port in (465, 587)
+
         mail_from = config["MAIL_FROM"]
         mail_to = config["MAIL_TO"]
 
