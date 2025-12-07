@@ -50,6 +50,7 @@ LOG_RETENTION_DAYS=30
 ```
 
 > 注：请根据您的邮件服务商要求配置SMTP参数。部分邮箱需要开启SMTP并使用授权码作为密码。
+> 注：如果有.my-env文件，以这个为准。它的优先级给.env的高。
 
 **日志文件位置**：
 - 开发环境：`./logs/check-web-alive-YYYY-MM-DD.log`
@@ -76,7 +77,22 @@ python check-web-alive.py
 
 ## 服务器部署运行
 ### Windows
+
+至少包括这些文件：
 ```
+dist
+   check-web-alive.exe
+scripts/
+  linux/                    # Linux 相关脚本
+    run-linux.sh              # Linux 运行脚本
+    install-linux.sh          # Linux 安装脚本
+    uninstall-linux.sh       # Linux 卸载脚本
+    common_tpl.service              # Linux systemd 服务文件 的模板文件，运行install-linux.sh时会生成一个正式的service文件
+  windows/                  # Windows 相关脚本
+    run.ps1                    # Windows 运行脚本
+    register_task.ps1          # Windows 计划任务注册    
+  README.md                 # 脚本使用说明
+.env (配置文件)
 ```
 
 要求将python程序生成的exe文件（如何生成exe文件，将附录是说明），如果检测到在dist文件夹没有exe文件，执行命令时会报错提醒。
