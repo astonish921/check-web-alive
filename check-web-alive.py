@@ -209,9 +209,10 @@ def main() -> None:
 						duration_minutes,
 						time.strftime('%Y-%m-%d %H:%M:%S')
 					)
-					app.send_mail(cfg, subject, content)
-					logger.info("已发送恢复通知邮件")
-					last_alert_ts = current_time  # 记录发送恢复通知的时间
+					mail_sent = app.send_mail(cfg, subject, content)
+					if mail_sent:
+						logger.info("已发送恢复通知邮件")
+						last_alert_ts = current_time  # 记录发送恢复通知的时间
 				except Exception as mail_exc:
 					logger.error("发送邮件失败: {}".format(mail_exc))
 			
@@ -226,9 +227,10 @@ def main() -> None:
 						"错误: {}\n"
 						"时间: {}\n"
 					).format(url, status_text, error_msg or '', time.strftime('%Y-%m-%d %H:%M:%S'))
-					app.send_mail(cfg, subject, content)
-					logger.info("已发送告警邮件")
-					last_alert_ts = current_time  # 记录发送首次告警的时间
+					mail_sent = app.send_mail(cfg, subject, content)
+					if mail_sent:
+						logger.info("已发送告警邮件")
+						last_alert_ts = current_time  # 记录发送首次告警的时间
 				except Exception as mail_exc:
 					logger.error("发送邮件失败: {}".format(mail_exc))
 			
@@ -259,9 +261,10 @@ def main() -> None:
 									duration_minutes,
 									time.strftime('%Y-%m-%d %H:%M:%S')
 								)
-								app.send_mail(cfg, subject, content)
-								logger.info("已发送持续异常统计邮件（异常持续 {} 分钟）".format(duration_minutes))
-								last_alert_ts = current_time  # 记录发送统计邮件的时间
+								mail_sent = app.send_mail(cfg, subject, content)
+								if mail_sent:
+									logger.info("已发送持续异常统计邮件（异常持续 {} 分钟）".format(duration_minutes))
+									last_alert_ts = current_time  # 记录发送统计邮件的时间
 							except Exception as mail_exc:
 								logger.error("发送邮件失败: {}".format(mail_exc))
 

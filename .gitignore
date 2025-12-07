@@ -4,5 +4,6 @@ logs/
 check-web-alive.spec
 src/__pycache__/
 __pycache__/
-.env
+.my-env
 rundata/
+.specstory/
