@@ -82,16 +82,7 @@ python check-web-alive.py
 ```
 dist
    check-web-alive.exe
-scripts/
-  linux/                    # Linux 相关脚本
-    run-linux.sh              # Linux 运行脚本
-    install-linux.sh          # Linux 安装脚本
-    uninstall-linux.sh       # Linux 卸载脚本
-    common_tpl.service              # Linux systemd 服务文件 的模板文件，运行install-linux.sh时会生成一个正式的service文件
-  windows/                  # Windows 相关脚本
-    run.ps1                    # Windows 运行脚本
-    register_task.ps1          # Windows 计划任务注册    
-  README.md                 # 脚本使用说明
+scripts(文件夹下所有的的内容)  
 .env (配置文件)
 ```
 
@@ -104,14 +95,21 @@ pwsh -File .\scripts\windows\run.ps1
 
 ### Linux
 ### step1:安装python及依赖
-
 1. 安装 Python 3.6.8+ 和 pip
 2. 安装依赖：
    一定是要先执行这个，否则python-dotenv没安装导致配置文件读取异常
    ```bash
    pip install -r requirements.txt
    ```
-### step2: 执行命令（如下是跑起来，关闭窗口后就断了，如果要后台进度，见下面“开机自启动”的说明）
+### step2: 拷贝如下的内容
+至少包括这些文件：
+```
+scripts(文件夹下所有的的内容)  
+.env (配置文件)
+requirements.txt
+check-web-alive.py
+```
+### step3: 执行命令（如下是跑起来，关闭窗口后就断了，如果要后台进度，见下面“开机自启动”的说明）
 ```bash
 ./scripts/linux/run-linux.sh
 ```

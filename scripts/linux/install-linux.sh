@@ -63,7 +63,7 @@ if [ -f "$PROJECT_ROOT/.env" ]; then
     fi
 else
     echo -e "${RED}错误: 未找到 .env 配置文件${NC}"
-    echo -e "${RED}请先创建 .env 配置文件，参考 config.example.env 文件${NC}"
+    echo -e "${RED}请先创建 .env 配置文件"
     exit 1
 fi
 
